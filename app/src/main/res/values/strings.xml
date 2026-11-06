@@ -2,5 +2,4 @@
 <resources>
     <string name="app_name">Hallo Welt</string>
     <string name="hello">Hallo Welt!</string>
-    <string name="show_card">Kundenkarte anzeigen</string>
 </resources>
