@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- App-Icon: stilisierter QR-Code auf dunkelblauem Kreis -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -7,7 +8,12 @@
     <path
         android:fillColor="#14213D"
         android:pathData="M54,4a50,50 0,1 1,0 100a50,50 0,1 1,0 -100z" />
+    <!-- Drei Eckquadrate -->
     <path
         android:fillColor="#FCA311"
-        android:pathData="M54,26a28,28 0,1 1,0 56a28,28 0,1 1,0 -56z" />
+        android:pathData="M30,30h14v14h-14zM32,32v10h10v-10zM34,34h6v6h-6zM64,30h14v14h-14zM66,32v10h10v-10zM68,34h6v6h-6zM30,64h14v14h-14zM32,66v10h10v-10zM34,68h6v6h-6z" />
+    <!-- Datenpunkte -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M48,30h4v4h-4zM56,30h4v4h-4zM52,34h4v4h-4zM48,38h4v4h-4zM56,42h4v4h-4zM30,48h4v4h-4zM38,48h4v4h-4zM34,52h4v4h-4zM42,56h4v4h-4zM48,48h4v4h-4zM52,52h4v4h-4zM60,48h4v4h-4zM68,48h4v4h-4zM74,52h4v4h-4zM48,60h4v4h-4zM56,56h4v4h-4zM64,60h4v4h-4zM72,64h4v4h-4zM64,68h4v4h-4zM52,68h4v4h-4zM48,74h4v4h-4zM60,74h4v4h-4zM70,74h4v4h-4z" />
 </vector>
