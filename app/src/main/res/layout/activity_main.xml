@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF"
+    android:background="#14213D"
     android:fitsSystemWindows="true"
     android:gravity="center_horizontal"
     android:orientation="vertical"
@@ -20,15 +20,17 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Mitgliedskarte"
-            android:textColor="#14213D"
+            android:textColor="#FFFFFF"
             android:textSize="28sp"
             android:textStyle="bold" />
 
         <ImageView
             android:id="@+id/qr"
-            android:layout_width="220dp"
-            android:layout_height="220dp"
+            android:layout_width="244dp"
+            android:layout_height="244dp"
             android:layout_marginTop="24dp"
+            android:background="@drawable/qr_frame"
+            android:padding="12dp"
             android:contentDescription="QR-Code der Kundenkarte"
             android:scaleType="fitCenter" />
 
@@ -37,7 +39,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:textColor="#000000"
+            android:textColor="#FCA311"
             android:textSize="22sp" />
 
         <TextView
@@ -46,7 +48,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:gravity="center"
-            android:textColor="#444444"
+            android:textColor="#E5E5E5"
             android:textSize="16sp" />
     </LinearLayout>
 
@@ -63,7 +65,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:gravity="center"
-        android:textColor="#666666"
+        android:textColor="#C8CCD8"
         android:textSize="14sp" />
 
     <Button
@@ -80,6 +82,6 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:gravity="center"
-        android:textColor="#999999"
+        android:textColor="#8A93AB"
         android:textSize="12sp" />
 </LinearLayout>
