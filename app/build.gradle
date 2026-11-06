@@ -39,3 +39,8 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 }
+
+dependencies {
+    // QR-Codes lesen (aus dem Screenshot) und erzeugen
+    implementation "com.google.zxing:core:3.5.3"
+}

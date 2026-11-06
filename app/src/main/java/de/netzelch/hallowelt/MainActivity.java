@@ -32,6 +32,9 @@ public class MainActivity extends Activity {
         updateButton = findViewById(R.id.update);
         updateButton.setOnClickListener(v -> onUpdateClicked());
 
+        findViewById(R.id.card).setOnClickListener(v ->
+                startActivity(new Intent(this, CardActivity.class)));
+
         checkForUpdate();
     }
 
