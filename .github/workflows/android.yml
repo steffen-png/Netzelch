@@ -26,7 +26,9 @@ jobs:
         run: gradle assembleDebug
 
       - name: APK umbenennen
-        run: cp app/build/outputs/apk/debug/app-debug.apk HalloWelt.apk
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk HalloWelt.apk
+          echo "$GITHUB_RUN_NUMBER" > version.txt
 
       - uses: actions/upload-artifact@v4
         with:
@@ -38,8 +40,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete hallo-welt --cleanup-tag -y || true
-          gh release create hallo-welt HalloWelt.apk \
+          gh release create hallo-welt HalloWelt.apk version.txt \
             --target "$GITHUB_SHA" \
             --prerelease \
-            --title "Hallo Welt (neuester Build)" \
+            --title "Hallo Welt 1.$GITHUB_RUN_NUMBER" \
             --notes "Auf dem Handy HalloWelt.apk antippen und installieren."

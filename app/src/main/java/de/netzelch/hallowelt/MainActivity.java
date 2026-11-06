@@ -1,20 +1,125 @@
 package de.netzelch.hallowelt;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.content.pm.PackageInstaller;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
+import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 
 public class MainActivity extends Activity {
+
+    private TextView status;
+    private Button updateButton;
+    private int latestVersion = -1;
+    private boolean busy;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Zeigt an, auf welchem Gerät die App läuft.
         TextView device = findViewById(R.id.device);
         device.setText(Build.MANUFACTURER + " " + Build.MODEL
-                + "\nAndroid " + Build.VERSION.RELEASE);
+                + "\nAndroid " + Build.VERSION.RELEASE
+                + "\nApp-Version " + BuildConfigInfo.versionName(this));
+
+        status = findViewById(R.id.status);
+        updateButton = findViewById(R.id.update);
+        updateButton.setOnClickListener(v -> onUpdateClicked());
+
+        checkForUpdate();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        if (Updater.ACTION_INSTALL_STATUS.equals(intent.getAction())) {
+            handleInstallStatus(intent);
+        }
+    }
+
+    private void checkForUpdate() {
+        busy = true;
+        showStatus("Suche nach Updates …", false);
+        new Thread(() -> {
+            try {
+                int latest = Updater.fetchLatestVersion();
+                int current = BuildConfigInfo.versionCode(this);
+                runOnUiThread(() -> {
+                    busy = false;
+                    latestVersion = latest;
+                    if (latest > current) {
+                        showStatus("Neue Version 1." + latest + " verfügbar", true);
+                        updateButton.setText("Jetzt aktualisieren");
+                    } else {
+                        showStatus("Die App ist aktuell.", true);
+                        updateButton.setText("Erneut prüfen");
+                    }
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    busy = false;
+                    showStatus("Update-Prüfung fehlgeschlagen: " + e.getMessage(), true);
+                    updateButton.setText("Erneut prüfen");
+                });
+            }
+        }).start();
+    }
+
+    private void onUpdateClicked() {
+        if (busy) return;
+        if (latestVersion <= BuildConfigInfo.versionCode(this)) {
+            checkForUpdate();
+            return;
+        }
+        // Android verlangt einmalig die Erlaubnis, Apps aus dieser Quelle zu installieren.
+        if (!getPackageManager().canRequestPackageInstalls()) {
+            showStatus("Bitte „Apps aus dieser Quelle erlauben“ einschalten und zurückkehren.", true);
+            startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:" + getPackageName())));
+            return;
+        }
+        busy = true;
+        showStatus("Lade Update …", false);
+        new Thread(() -> {
+            try {
+                Updater.downloadAndInstall(this, percent ->
+                        runOnUiThread(() -> status.setText("Lade Update … " + percent + " %")));
+                runOnUiThread(() -> status.setText("Installation wird gestartet …"));
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    busy = false;
+                    showStatus("Download fehlgeschlagen: " + e.getMessage(), true);
+                });
+            }
+        }).start();
+    }
+
+    private void handleInstallStatus(Intent intent) {
+        int code = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE);
+        if (code == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+            // Android zeigt jetzt den Dialog „Diese App aktualisieren?“.
+            @SuppressWarnings("deprecation")
+            Intent confirm = intent.getParcelableExtra(Intent.EXTRA_INTENT);
+            if (confirm != null) startActivity(confirm);
+        } else if (code == PackageInstaller.STATUS_SUCCESS) {
+            busy = false;
+            showStatus("Update installiert.", true);
+        } else {
+            busy = false;
+            String msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);
+            showStatus("Installation abgebrochen" + (msg != null ? ": " + msg : "."), true);
+        }
+    }
+
+    private void showStatus(String text, boolean buttonEnabled) {
+        status.setText(text);
+        updateButton.setEnabled(buttonEnabled);
+        updateButton.setVisibility(View.VISIBLE);
     }
 }

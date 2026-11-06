@@ -2,6 +2,9 @@ plugins {
     id "com.android.application"
 }
 
+// Jeder GitHub-Build bekommt eine höhere Versionsnummer, damit die App Updates erkennt.
+def buildNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1") as Integer
+
 android {
     namespace "de.netzelch.hallowelt"
     compileSdk 35
@@ -10,8 +13,25 @@ android {
         applicationId "de.netzelch.hallowelt"
         minSdk 26
         targetSdk 35
-        versionCode 1
-        versionName "1.0"
+        versionCode buildNumber
+        versionName "1.${buildNumber}"
+    }
+
+    // Fester Schlüssel: Updates müssen mit demselben Schlüssel signiert sein
+    // wie die installierte App, sonst lehnt Android sie ab.
+    signingConfigs {
+        shared {
+            storeFile file("netzelch.keystore")
+            storePassword "netzelch"
+            keyAlias "netzelch"
+            keyPassword "netzelch"
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.shared
+        }
     }
 
     compileOptions {

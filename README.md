@@ -14,3 +14,13 @@ Die APK baut GitHub Actions automatisch bei jedem Push (`.github/workflows/andro
 ## Selbst bauen
 
 Mit installiertem Android-SDK und Gradle 8.9+: `gradle assembleDebug`
+
+## Automatische Updates
+
+Beim Start prüft die App `version.txt` im Release `hallo-welt`. Ist die Nummer höher als die
+installierte Version, bietet sie „Jetzt aktualisieren“ an, lädt die neue APK und öffnet den
+Android-Installationsdialog. Die Versionsnummer ist die Nummer des GitHub-Actions-Laufs.
+
+Alle Builds werden mit `app/netzelch.keystore` signiert, damit Android Updates akzeptiert.
+Der Schlüssel liegt öffentlich im Repo. Für eine App, die du weitergibst, gehört er in ein
+GitHub-Secret.
