@@ -2,6 +2,7 @@ package de.netzelch.hallowelt;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageInstaller;
 import android.net.Uri;
 import android.os.Build;
@@ -12,6 +13,8 @@ import android.widget.Button;
 import android.widget.TextView;
 
 public class MainActivity extends Activity {
+
+    private static final String KEY_SELF_UPDATE_BLOCKED = "self_update_blocked";
 
     private TextView status;
     private Button updateButton;
@@ -87,6 +90,12 @@ public class MainActivity extends Activity {
                     Uri.parse("package:" + getPackageName())));
             return;
         }
+        // Manche Android-Versionen verbieten Apps außerhalb eines Stores, sich selbst
+        // zu installieren. Dann laden wir die neue Version über den Browser.
+        if (selfUpdateBlocked()) {
+            openInBrowser();
+            return;
+        }
         busy = true;
         showStatus("Lade Update …", false);
         new Thread(() -> {
@@ -116,8 +125,27 @@ public class MainActivity extends Activity {
         } else {
             busy = false;
             String msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);
+            if (msg != null && (msg.contains("Self update") || msg.contains("unknown source"))) {
+                prefs().edit().putBoolean(KEY_SELF_UPDATE_BLOCKED, true).apply();
+                openInBrowser();
+                return;
+            }
             showStatus("Installation abgebrochen" + (msg != null ? ": " + msg : "."), true);
         }
+    }
+
+    private void openInBrowser() {
+        showStatus("Der Browser lädt die neue Version. Danach die Datei öffnen und "
+                + "„Aktualisieren“ tippen.", true);
+        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(Updater.APK_URL)));
+    }
+
+    private boolean selfUpdateBlocked() {
+        return prefs().getBoolean(KEY_SELF_UPDATE_BLOCKED, false);
+    }
+
+    private SharedPreferences prefs() {
+        return getSharedPreferences("update", MODE_PRIVATE);
     }
 
     private void showStatus(String text, boolean buttonEnabled) {
