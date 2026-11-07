@@ -1,6 +1,7 @@
 package de.netzelch.reanimation;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
@@ -18,12 +19,15 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Locale;
 
 /**
@@ -91,6 +95,13 @@ public class MainActivity extends Activity {
             root.addView(makeTile(i), lp);
         }
 
+        TextView protocol = text("Protokoll anzeigen", 16, true);
+        protocol.setGravity(Gravity.CENTER);
+        protocol.setPadding(0, dp(12), 0, dp(4));
+        protocol.setTextColor(Color.rgb(0x9E, 0xC5, 0xFF));
+        protocol.setOnClickListener(v -> showProtocol());
+        root.addView(protocol);
+
         TextView help = new TextView(this);
         help.setText("Tippen: auf 0 setzen · Gesamtzeit lange drücken: alles zurücksetzen");
         help.setTextColor(Color.rgb(0x8A, 0x90, 0xA0));
@@ -150,6 +161,10 @@ public class MainActivity extends Activity {
     private void reset(int i) {
         // Gesamtzeit startet nur, sie wird nicht versehentlich durch Antippen zurückgesetzt.
         if (i == 0 && start(0) > 0) return;
+        boolean firstTap = start(0) == 0;
+        int count = prefs.getInt("count" + i, 0) + 1;
+        if (firstTap) log("Reanimation gestartet");
+        if (i != 0) log(TIMERS[i][0] + " #" + count);
         prefs.edit()
                 .putLong("start" + i, SystemClock.elapsedRealtime())
                 .putInt("count" + i, prefs.getInt("count" + i, 0) + 1)
@@ -164,7 +179,10 @@ public class MainActivity extends Activity {
     }
 
     private void resetAll() {
-        prefs.edit().clear().apply();
+        log("Neue Reanimation (alles zurückgesetzt)");
+        // Das bisherige Protokoll bleibt als „vorheriges“ erhalten.
+        String last = prefs.getString("log", "");
+        prefs.edit().clear().putString("previousLog", last).apply();
         alarmed = new boolean[TIMERS.length];
         vibrate(200);
         update();
@@ -231,6 +249,53 @@ public class MainActivity extends Activity {
                 // Ohne Internet läuft die App normal weiter.
             }
         }).start();
+    }
+
+    /** Hängt eine Zeile ans Protokoll: Uhrzeit, Zeit seit Beginn, Ereignis. */
+    private void log(String event) {
+        long s = start(0);
+        String since = s == 0 ? "00:00" : format(SystemClock.elapsedRealtime() - s);
+        String clock = new SimpleDateFormat("HH:mm:ss", Locale.GERMANY).format(new Date());
+        String line = clock + "  (+" + since + ")  " + event;
+        String old = prefs.getString("log", "");
+        prefs.edit().putString("log", old.isEmpty() ? line : old + "\n" + line).apply();
+    }
+
+    private String protocolText() {
+        String current = prefs.getString("log", "");
+        String previous = prefs.getString("previousLog", "");
+        String date = new SimpleDateFormat("dd.MM.yyyy", Locale.GERMANY).format(new Date());
+        StringBuilder sb = new StringBuilder("Reanimationsprotokoll ").append(date).append("\n\n");
+        sb.append(current.isEmpty() ? "Noch keine Einträge." : current);
+        if (!previous.isEmpty()) {
+            sb.append("\n\n--- Vorherige Reanimation ---\n").append(previous);
+        }
+        return sb.toString();
+    }
+
+    private void showProtocol() {
+        String text = protocolText();
+        TextView body = new TextView(this);
+        body.setText(text);
+        body.setTextSize(15);
+        body.setTypeface(Typeface.MONOSPACE);
+        body.setTextIsSelectable(true);
+        body.setPadding(dp(20), dp(12), dp(20), dp(12));
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(body);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Protokoll")
+                .setView(scroll)
+                .setPositiveButton("Teilen", (d, w) -> {
+                    Intent send = new Intent(Intent.ACTION_SEND)
+                            .setType("text/plain")
+                            .putExtra(Intent.EXTRA_SUBJECT, "Reanimationsprotokoll")
+                            .putExtra(Intent.EXTRA_TEXT, text);
+                    startActivity(Intent.createChooser(send, "Protokoll teilen"));
+                })
+                .setNegativeButton("Schließen", null)
+                .show();
     }
 
     @Override

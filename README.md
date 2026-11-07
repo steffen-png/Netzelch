@@ -40,6 +40,7 @@ Zeitgeber für eine Reanimation mit großen Kacheln:
 - 15 s vor Ablauf wird die Kachel orange, bei Ablauf rot blinkend und das Handy vibriert.
 - Gesamtzeit lange drücken setzt alles für eine neue Reanimation zurück.
 - Display bleibt an, die Zeiten überstehen das Schließen der App.
+- „Protokoll anzeigen“ listet jeden Tipp mit Uhrzeit und Zeit seit Beginn, „Teilen“ verschickt es als Text.
 
 Download: https://github.com/steffen-png/Netzelch/releases/download/reanimation/Reanimation.apk
 
