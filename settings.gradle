@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "HalloWelt"
-include ":app"
+include ":app", ":reanimation"

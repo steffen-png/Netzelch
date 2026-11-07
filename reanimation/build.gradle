@@ -1,0 +1,38 @@
+plugins {
+    id "com.android.application"
+}
+
+def buildNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1") as Integer
+
+android {
+    namespace "de.netzelch.reanimation"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "de.netzelch.reanimation"
+        minSdk 26
+        targetSdk 35
+        versionCode buildNumber
+        versionName "1.${buildNumber}"
+    }
+
+    signingConfigs {
+        shared {
+            storeFile file("../app/netzelch.keystore")
+            storePassword "netzelch"
+            keyAlias "netzelch"
+            keyPassword "netzelch"
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.shared
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

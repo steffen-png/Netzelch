@@ -24,3 +24,23 @@ Android-Installationsdialog. Die Versionsnummer ist die Nummer des GitHub-Action
 Alle Builds werden mit `app/netzelch.keystore` signiert, damit Android Updates akzeptiert.
 Der Schlüssel liegt öffentlich im Repo. Für eine App, die du weitergibst, gehört er in ein
 GitHub-Secret.
+
+# Reanimation – zweite App (Modul `reanimation`)
+
+Zeitgeber für eine Reanimation mit großen Kacheln:
+
+| Kachel | Intervall |
+|---|---|
+| Gesamtzeit | – (startet mit dem ersten Tipp) |
+| Rhythmusanalyse / Schock | alle 2:00 |
+| Helferwechsel | alle 2:00 |
+| Adrenalin | alle 4:00 (Leitlinie: 3–5 min) |
+
+- Antippen setzt eine Kachel auf 0 und zählt mit (z. B. „3×“ Adrenalin).
+- 15 s vor Ablauf wird die Kachel orange, bei Ablauf rot blinkend und das Handy vibriert.
+- Gesamtzeit lange drücken setzt alles für eine neue Reanimation zurück.
+- Display bleibt an, die Zeiten überstehen das Schließen der App.
+
+Download: https://github.com/steffen-png/Netzelch/releases/download/reanimation/Reanimation.apk
+
+Die App ist eine Merkhilfe und ersetzt keine Leitlinie oder Ausbildung.
