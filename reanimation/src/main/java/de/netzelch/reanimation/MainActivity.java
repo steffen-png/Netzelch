@@ -17,7 +17,10 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.widget.CheckBox;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -54,6 +57,23 @@ public class MainActivity extends Activity {
             {"Adrenalin", 240},
     };
 
+    /** Reversible Ursachen: Gruppe, Name, Hinweis. */
+    private static final String[][] CAUSES = {
+            {"4 H", "Hypoxie", "Atemweg, Beatmung, O2"},
+            {"4 H", "Hypovolämie", "Blutung, Volumen"},
+            {"4 H", "Hypo-/Hyperkaliämie, metabolisch", "BGA, Elektrolyte, Glukose"},
+            {"4 H", "Hypo-/Hyperthermie", "Temperatur messen"},
+            {"HITS", "Herzbeuteltamponade", "Sono"},
+            {"HITS", "Intoxikation", "Anamnese, Antidot"},
+            {"HITS", "Thrombose (Lungenembolie / Infarkt)", "Lyse erwägen"},
+            {"HITS", "Spannungspneumothorax", "Entlastung"},
+    };
+
+    private FrameLayout frame;
+    private View dim;
+    private View panel;
+    private CheckBox[] causeChecks;
+
     private final Handler handler = new Handler(Looper.getMainLooper());
     private SharedPreferences prefs;
     private TextView[] times, labels, counts;
@@ -84,7 +104,7 @@ public class MainActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(BG);
-        root.setFitsSystemWindows(true);
+
         int pad = dp(12);
         root.setPadding(pad, pad, pad, pad);
 
@@ -113,7 +133,7 @@ public class MainActivity extends Activity {
             return true;
         });
         root.addView(help);
-        setContentView(root);
+        setContentView(buildFrame(root));
 
         checkForUpdate(help);
     }
@@ -178,12 +198,149 @@ public class MainActivity extends Activity {
         update();
     }
 
+    // ---- Seitenleiste rechts ----
+
+    /** Hauptseite mit Griff am rechten Rand und darüber die ausklappbare Seitenleiste. */
+    private View buildFrame(View main) {
+        frame = new FrameLayout(this);
+        frame.setBackgroundColor(BG);
+        frame.setFitsSystemWindows(true);
+
+        LinearLayout row = new LinearLayout(this);
+        row.addView(main, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+
+        TextView handle = text("‹", 28, true);
+        handle.setGravity(Gravity.CENTER);
+        handle.setTextColor(Color.rgb(0x9E, 0xC5, 0xFF));
+        handle.setBackgroundColor(Color.rgb(0x1C, 0x20, 0x2B));
+        handle.setContentDescription("Weitere Funktionen");
+        handle.setOnClickListener(v -> openPanel());
+        row.addView(handle, new LinearLayout.LayoutParams(dp(30), ViewGroup.LayoutParams.MATCH_PARENT));
+        frame.addView(row);
+
+        dim = new View(this);
+        dim.setBackgroundColor(Color.argb(0x99, 0, 0, 0));
+        dim.setVisibility(View.GONE);
+        dim.setOnClickListener(v -> closePanel());
+        frame.addView(dim);
+
+        int width = Math.min(Math.round(getResources().getDisplayMetrics().widthPixels * 0.88f), dp(380));
+        panel = buildPanel();
+        panel.setVisibility(View.GONE);
+        frame.addView(panel, new FrameLayout.LayoutParams(width, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.END));
+        return frame;
+    }
+
+    private View buildPanel() {
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        list.setPadding(dp(20), dp(16), dp(16), dp(24));
+
+        LinearLayout head = new LinearLayout(this);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        head.addView(text("Weitere Funktionen", 20, true),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView close = text("✕", 22, true);
+        close.setPadding(dp(12), dp(4), dp(4), dp(4));
+        close.setOnClickListener(v -> closePanel());
+        head.addView(close);
+        list.addView(head);
+
+        // Funktion 1: reversible Ursachen
+        TextView section = text("Reversible Ursachen", 17, true);
+        section.setTextColor(WARN);
+        section.setPadding(0, dp(20), 0, 0);
+        list.addView(section);
+        TextView sub = text("Abhaken, wenn ausgeschlossen oder behandelt", 13, false);
+        sub.setTextColor(Color.rgb(0x8A, 0x90, 0xA0));
+        list.addView(sub);
+
+        causeChecks = new CheckBox[CAUSES.length];
+        String group = "";
+        for (int k = 0; k < CAUSES.length; k++) {
+            if (!CAUSES[k][0].equals(group)) {
+                group = CAUSES[k][0];
+                TextView g = text(group, 15, true);
+                g.setTextColor(Color.rgb(0x9E, 0xC5, 0xFF));
+                g.setPadding(0, dp(14), 0, dp(2));
+                list.addView(g);
+            }
+            CheckBox cb = new CheckBox(this);
+            cb.setText(CAUSES[k][1] + "\n" + CAUSES[k][2]);
+            cb.setTextColor(Color.WHITE);
+            cb.setTextSize(16);
+            cb.setPadding(dp(8), dp(8), 0, dp(8));
+            final int idx = k;
+            cb.setOnCheckedChangeListener((b, checked) -> {
+                if (checked == prefs.getBoolean("cause" + idx, false)) return;
+                prefs.edit().putBoolean("cause" + idx, checked).apply();
+                log((checked ? "Ausgeschlossen: " : "Wieder offen: ") + CAUSES[idx][1]);
+                updateCauseCount();
+            });
+            causeChecks[k] = cb;
+            list.addView(cb);
+        }
+        causeCount = text("", 14, false);
+        causeCount.setTextColor(Color.rgb(0x8A, 0x90, 0xA0));
+        causeCount.setPadding(0, dp(12), 0, 0);
+        list.addView(causeCount);
+        refreshCauses();
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.setBackgroundColor(Color.rgb(0x1C, 0x20, 0x2B));
+        scroll.addView(list);
+        return scroll;
+    }
+
+    private TextView causeCount;
+
+    private void refreshCauses() {
+        for (int k = 0; k < causeChecks.length; k++) {
+            causeChecks[k].setChecked(prefs.getBoolean("cause" + k, false));
+        }
+        updateCauseCount();
+    }
+
+    private void updateCauseCount() {
+        int done = 0;
+        for (int k = 0; k < CAUSES.length; k++) if (prefs.getBoolean("cause" + k, false)) done++;
+        causeCount.setText(done + " von " + CAUSES.length + " abgehakt");
+    }
+
+    private void openPanel() {
+        dim.setVisibility(View.VISIBLE);
+        dim.setAlpha(0f);
+        dim.animate().alpha(1f).setDuration(200).start();
+        panel.setVisibility(View.VISIBLE);
+        panel.post(() -> {
+            panel.setTranslationX(panel.getWidth());
+            panel.animate().translationX(0).setDuration(220).start();
+        });
+    }
+
+    private void closePanel() {
+        dim.animate().alpha(0f).setDuration(200).withEndAction(() -> dim.setVisibility(View.GONE)).start();
+        panel.animate().translationX(panel.getWidth()).setDuration(220)
+                .withEndAction(() -> panel.setVisibility(View.GONE)).start();
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public void onBackPressed() {
+        if (panel != null && panel.getVisibility() == View.VISIBLE) {
+            closePanel();
+        } else {
+            super.onBackPressed();
+        }
+    }
+
     private void resetAll() {
         log("Neue Reanimation (alles zurückgesetzt)");
         // Das bisherige Protokoll bleibt als „vorheriges“ erhalten.
         String last = prefs.getString("log", "");
         prefs.edit().clear().putString("previousLog", last).apply();
         alarmed = new boolean[TIMERS.length];
+        refreshCauses();
         vibrate(200);
         update();
     }
