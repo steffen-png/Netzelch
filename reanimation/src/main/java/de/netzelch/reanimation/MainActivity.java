@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -219,12 +220,14 @@ public class MainActivity extends Activity {
         frame.addView(row);
 
         dim = new View(this);
-        dim.setBackgroundColor(Color.argb(0x99, 0, 0, 0));
+        // Nur leicht abdunkeln: die Zeiten links bleiben lesbar.
+        dim.setBackgroundColor(Color.argb(0x40, 0, 0, 0));
         dim.setVisibility(View.GONE);
         dim.setOnClickListener(v -> closePanel());
         frame.addView(dim);
 
-        int width = Math.min(Math.round(getResources().getDisplayMetrics().widthPixels * 0.88f), dp(380));
+        // Die Leiste ragt nur halb ins Bild.
+        int width = getResources().getDisplayMetrics().widthPixels / 2;
         panel = buildPanel();
         panel.setVisibility(View.GONE);
         frame.addView(panel, new FrameLayout.LayoutParams(width, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.END));
@@ -234,11 +237,11 @@ public class MainActivity extends Activity {
     private View buildPanel() {
         LinearLayout list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
-        list.setPadding(dp(20), dp(16), dp(16), dp(24));
+        list.setPadding(dp(10), dp(12), dp(10), dp(24));
 
         LinearLayout head = new LinearLayout(this);
         head.setGravity(Gravity.CENTER_VERTICAL);
-        head.addView(text("Weitere Funktionen", 20, true),
+        head.addView(text("Mehr", 20, true),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         TextView close = text("✕", 22, true);
         close.setPadding(dp(12), dp(4), dp(4), dp(4));
@@ -251,7 +254,7 @@ public class MainActivity extends Activity {
         section.setTextColor(WARN);
         section.setPadding(0, dp(20), 0, 0);
         list.addView(section);
-        TextView sub = text("Abhaken, wenn ausgeschlossen oder behandelt", 13, false);
+        TextView sub = text("Antippen, wenn ausgeschlossen", 12, false);
         sub.setTextColor(Color.rgb(0x8A, 0x90, 0xA0));
         list.addView(sub);
 
@@ -268,17 +271,22 @@ public class MainActivity extends Activity {
             CheckBox cb = new CheckBox(this);
             cb.setText(CAUSES[k][1] + "\n" + CAUSES[k][2]);
             cb.setTextColor(Color.WHITE);
-            cb.setTextSize(16);
-            cb.setPadding(dp(8), dp(8), 0, dp(8));
+            cb.setTextSize(14);
+            cb.setPadding(dp(4), dp(10), dp(6), dp(10));
+            cb.setButtonTintList(ColorStateList.valueOf(Color.WHITE));
             final int idx = k;
             cb.setOnCheckedChangeListener((b, checked) -> {
                 if (checked == prefs.getBoolean("cause" + idx, false)) return;
                 prefs.edit().putBoolean("cause" + idx, checked).apply();
+                styleCause(idx, checked);
                 log((checked ? "Ausgeschlossen: " : "Wieder offen: ") + CAUSES[idx][1]);
                 updateCauseCount();
             });
             causeChecks[k] = cb;
-            list.addView(cb);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.topMargin = dp(6);
+            list.addView(cb, lp);
         }
         causeCount = text("", 14, false);
         causeCount.setTextColor(Color.rgb(0x8A, 0x90, 0xA0));
@@ -296,9 +304,27 @@ public class MainActivity extends Activity {
 
     private void refreshCauses() {
         for (int k = 0; k < causeChecks.length; k++) {
-            causeChecks[k].setChecked(prefs.getBoolean("cause" + k, false));
+            boolean checked = prefs.getBoolean("cause" + k, false);
+            causeChecks[k].setChecked(checked);
+            styleCause(k, checked);
         }
         updateCauseCount();
+    }
+
+    /** Abgehakt: grüne Fläche. Offen: dunkle Fläche mit hellem Rand. */
+    private void styleCause(int k, boolean checked) {
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(10));
+        if (checked) {
+            bg.setColor(Color.rgb(0x2E, 0x8B, 0x3E));
+        } else {
+            bg.setColor(Color.rgb(0x2A, 0x2F, 0x3C));
+            bg.setStroke(dp(1), Color.rgb(0x4A, 0x52, 0x66));
+        }
+        CheckBox cb = causeChecks[k];
+        cb.setBackground(bg);
+        cb.setText((checked ? "✓ " : "") + CAUSES[k][1] + "\n" + (checked ? "ausgeschlossen" : CAUSES[k][2]));
+        cb.setTypeface(checked ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
     }
 
     private void updateCauseCount() {
