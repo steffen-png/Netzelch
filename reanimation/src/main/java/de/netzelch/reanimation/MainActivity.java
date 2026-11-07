@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.PackageInfo;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -20,6 +19,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -71,6 +71,12 @@ public class MainActivity extends Activity {
     };
 
     private FrameLayout frame;
+    private TextView handle;
+    private View causesBox, settingsBox;
+    private TextView tabCauses, tabSettings;
+    private TextView updateStatus;
+    private Button updateButton;
+    private int latestVersion = -1;
     private View dim;
     private View panel;
     private CheckBox[] causeChecks;
@@ -129,14 +135,10 @@ public class MainActivity extends Activity {
         help.setTextSize(12);
         help.setGravity(Gravity.CENTER);
         help.setPadding(0, dp(10), 0, 0);
-        help.setOnLongClickListener(v -> {
-            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(RELEASE + "Reanimation.apk")));
-            return true;
-        });
         root.addView(help);
         setContentView(buildFrame(root));
 
-        checkForUpdate(help);
+        checkForUpdate();
     }
 
     private View makeTile(int i) {
@@ -210,7 +212,7 @@ public class MainActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         row.addView(main, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
 
-        TextView handle = text("‹", 28, true);
+        handle = text("‹", 28, true);
         handle.setGravity(Gravity.CENTER);
         handle.setTextColor(Color.rgb(0x9E, 0xC5, 0xFF));
         handle.setBackgroundColor(Color.rgb(0x1C, 0x20, 0x2B));
@@ -249,14 +251,34 @@ public class MainActivity extends Activity {
         head.addView(close);
         list.addView(head);
 
+        // Tabs
+        LinearLayout tabRow = new LinearLayout(this);
+        tabRow.setPadding(0, dp(10), 0, dp(4));
+        tabCauses = tab("4 H / HITS");
+        tabSettings = tab("Einstellungen");
+        LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        tl.rightMargin = dp(4);
+        tabRow.addView(tabCauses, tl);
+        tabRow.addView(tabSettings, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        list.addView(tabRow);
+        tabCauses.setOnClickListener(v -> showTab(false));
+        tabSettings.setOnClickListener(v -> showTab(true));
+
+        LinearLayout causes = new LinearLayout(this);
+        causes.setOrientation(LinearLayout.VERTICAL);
+        causesBox = causes;
+        list.addView(causes);
+        settingsBox = buildSettings();
+        list.addView(settingsBox);
+
         // Funktion 1: reversible Ursachen
         TextView section = text("Reversible Ursachen", 17, true);
         section.setTextColor(WARN);
         section.setPadding(0, dp(20), 0, 0);
-        list.addView(section);
+        causes.addView(section);
         TextView sub = text("Antippen, wenn ausgeschlossen", 12, false);
         sub.setTextColor(Color.rgb(0x8A, 0x90, 0xA0));
-        list.addView(sub);
+        causes.addView(sub);
 
         causeChecks = new CheckBox[CAUSES.length];
         String group = "";
@@ -266,7 +288,7 @@ public class MainActivity extends Activity {
                 TextView g = text(group, 15, true);
                 g.setTextColor(Color.rgb(0x9E, 0xC5, 0xFF));
                 g.setPadding(0, dp(14), 0, dp(2));
-                list.addView(g);
+                causes.addView(g);
             }
             CheckBox cb = new CheckBox(this);
             cb.setText(CAUSES[k][1] + "\n" + CAUSES[k][2]);
@@ -286,13 +308,15 @@ public class MainActivity extends Activity {
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             lp.topMargin = dp(6);
-            list.addView(cb, lp);
+            causes.addView(cb, lp);
         }
         causeCount = text("", 14, false);
         causeCount.setTextColor(Color.rgb(0x8A, 0x90, 0xA0));
         causeCount.setPadding(0, dp(12), 0, 0);
-        list.addView(causeCount);
+        causes.addView(causeCount);
         refreshCauses();
+
+        showTab(false);
 
         ScrollView scroll = new ScrollView(this);
         scroll.setBackgroundColor(Color.rgb(0x1C, 0x20, 0x2B));
@@ -301,6 +325,94 @@ public class MainActivity extends Activity {
     }
 
     private TextView causeCount;
+
+    private TextView tab(String label) {
+        TextView t = text(label, 13, true);
+        t.setGravity(Gravity.CENTER);
+        t.setPadding(dp(4), dp(8), dp(4), dp(8));
+        return t;
+    }
+
+    private void showTab(boolean settings) {
+        causesBox.setVisibility(settings ? View.GONE : View.VISIBLE);
+        settingsBox.setVisibility(settings ? View.VISIBLE : View.GONE);
+        styleTab(tabCauses, !settings);
+        styleTab(tabSettings, settings);
+    }
+
+    private void styleTab(TextView t, boolean active) {
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(8));
+        bg.setColor(active ? Color.rgb(0x3A, 0x5A, 0x8C) : Color.rgb(0x2A, 0x2F, 0x3C));
+        t.setBackground(bg);
+        t.setTextColor(active ? Color.WHITE : Color.rgb(0x8A, 0x90, 0xA0));
+    }
+
+    private View buildSettings() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(0, dp(12), 0, 0);
+
+        TextView title = text("App-Update", 17, true);
+        title.setTextColor(WARN);
+        box.addView(title);
+
+        TextView version = text("Installiert: " + versionName(), 14, false);
+        version.setPadding(0, dp(6), 0, 0);
+        box.addView(version);
+
+        updateStatus = text("Suche nach Updates …", 14, false);
+        updateStatus.setTextColor(Color.rgb(0xC8, 0xCC, 0xD8));
+        updateStatus.setPadding(0, dp(4), 0, dp(10));
+        box.addView(updateStatus);
+
+        updateButton = new Button(this);
+        updateButton.setText("Nach Updates suchen");
+        updateButton.setAllCaps(false);
+        updateButton.setOnClickListener(v -> {
+            if (latestVersion > versionCode()) {
+                // Android erlaubt Apps außerhalb eines Stores kein Selbst-Update,
+                // daher lädt der Browser die neue Version.
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(RELEASE + "Reanimation.apk")));
+            } else {
+                checkForUpdate();
+            }
+        });
+        box.addView(updateButton);
+
+        TextView how = text("Der Browser lädt die neue Version. Danach die Datei öffnen "
+                + "und „Aktualisieren“ tippen. Zeiten und Protokoll bleiben erhalten.", 12, false);
+        how.setTextColor(Color.rgb(0x8A, 0x90, 0xA0));
+        how.setPadding(0, dp(8), 0, 0);
+        box.addView(how);
+        return box;
+    }
+
+    private void showUpdateState(String status, boolean available) {
+        updateStatus.setText(status);
+        updateStatus.setTextColor(available ? WARN : Color.rgb(0xC8, 0xCC, 0xD8));
+        updateButton.setText(available ? "Update herunterladen" : "Nach Updates suchen");
+        updateButton.setEnabled(true);
+        // Orangener Punkt am Griff zeigt ein Update an.
+        handle.setText(available ? "‹\n●" : "‹");
+        handle.setTextColor(available ? WARN : Color.rgb(0x9E, 0xC5, 0xFF));
+    }
+
+    private long versionCode() {
+        try {
+            return getPackageManager().getPackageInfo(getPackageName(), 0).getLongVersionCode();
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    private String versionName() {
+        try {
+            return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (Exception e) {
+            return "?";
+        }
+    }
 
     private void refreshCauses() {
         for (int k = 0; k < causeChecks.length; k++) {
@@ -409,27 +521,32 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void checkForUpdate(TextView help) {
+    private void checkForUpdate() {
+        updateStatus.setText("Suche nach Updates …");
+        updateButton.setEnabled(false);
         new Thread(() -> {
             try {
                 HttpURLConnection c = (HttpURLConnection) new URL(RELEASE + "version.txt").openConnection();
                 c.setConnectTimeout(10000);
                 c.setReadTimeout(10000);
+                c.setUseCaches(false);
                 int latest;
                 try (BufferedReader in = new BufferedReader(new InputStreamReader(c.getInputStream()))) {
                     latest = Integer.parseInt(in.readLine().trim());
                 } finally {
                     c.disconnect();
                 }
-                PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
-                if (latest > info.getLongVersionCode()) {
-                    runOnUiThread(() -> {
-                        help.setText("Update 1." + latest + " verfügbar: hier lange drücken");
-                        help.setTextColor(WARN);
-                    });
-                }
-            } catch (Exception ignored) {
+                runOnUiThread(() -> {
+                    latestVersion = latest;
+                    if (latest > versionCode()) {
+                        showUpdateState("Neue Version 1." + latest + " verfügbar", true);
+                    } else {
+                        showUpdateState("Die App ist aktuell.", false);
+                    }
+                });
+            } catch (Exception e) {
                 // Ohne Internet läuft die App normal weiter.
+                runOnUiThread(() -> showUpdateState("Keine Verbindung zum Update-Server.", false));
             }
         }).start();
     }
