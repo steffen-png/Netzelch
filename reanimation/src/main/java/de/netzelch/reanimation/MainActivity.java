@@ -71,9 +71,11 @@ public class MainActivity extends Activity {
     };
 
     private FrameLayout frame;
-    private TextView handle;
+    private static final int HITS_COLOR = Color.rgb(0xE8, 0x8B, 0x1A);
+    private static final int SETTINGS_COLOR = Color.rgb(0x4A, 0x52, 0x66);
+    private TextView settingsHandle;
+    private View panelStripe;
     private View causesBox, settingsBox;
-    private TextView tabCauses, tabSettings;
     private TextView updateStatus;
     private Button updateButton;
     private int latestVersion = -1;
@@ -212,13 +214,20 @@ public class MainActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         row.addView(main, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
 
-        handle = text("‹", 28, true);
-        handle.setGravity(Gravity.CENTER);
-        handle.setTextColor(Color.rgb(0x9E, 0xC5, 0xFF));
-        handle.setBackgroundColor(Color.rgb(0x1C, 0x20, 0x2B));
-        handle.setContentDescription("Weitere Funktionen");
-        handle.setOnClickListener(v -> openPanel());
-        row.addView(handle, new LinearLayout.LayoutParams(dp(30), ViewGroup.LayoutParams.MATCH_PARENT));
+        // Farbige Griffe am rechten Rand, einer pro Bereich.
+        LinearLayout handles = new LinearLayout(this);
+        handles.setOrientation(LinearLayout.VERTICAL);
+        TextView hits = handle("H\nI\nT\nS", HITS_COLOR, "4 H und HITS");
+        hits.setOnClickListener(v -> openPanel(false));
+        handles.addView(hits, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 3f));
+        settingsHandle = handle("⚙", SETTINGS_COLOR, "Einstellungen");
+        settingsHandle.setOnClickListener(v -> openPanel(true));
+        LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+        sl.topMargin = dp(6);
+        handles.addView(settingsHandle, sl);
+        LinearLayout.LayoutParams hl = new LinearLayout.LayoutParams(dp(30), ViewGroup.LayoutParams.MATCH_PARENT);
+        hl.leftMargin = dp(4);
+        row.addView(handles, hl);
         frame.addView(row);
 
         dim = new View(this);
@@ -239,30 +248,7 @@ public class MainActivity extends Activity {
     private View buildPanel() {
         LinearLayout list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
-        list.setPadding(dp(10), dp(12), dp(10), dp(24));
-
-        LinearLayout head = new LinearLayout(this);
-        head.setGravity(Gravity.CENTER_VERTICAL);
-        head.addView(text("Mehr", 20, true),
-                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        TextView close = text("✕", 22, true);
-        close.setPadding(dp(12), dp(4), dp(4), dp(4));
-        close.setOnClickListener(v -> closePanel());
-        head.addView(close);
-        list.addView(head);
-
-        // Tabs
-        LinearLayout tabRow = new LinearLayout(this);
-        tabRow.setPadding(0, dp(10), 0, dp(4));
-        tabCauses = tab("4 H / HITS");
-        tabSettings = tab("Einstellungen");
-        LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        tl.rightMargin = dp(4);
-        tabRow.addView(tabCauses, tl);
-        tabRow.addView(tabSettings, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        list.addView(tabRow);
-        tabCauses.setOnClickListener(v -> showTab(false));
-        tabSettings.setOnClickListener(v -> showTab(true));
+        list.setPadding(dp(10), dp(4), dp(10), dp(24));
 
         LinearLayout causes = new LinearLayout(this);
         causes.setOrientation(LinearLayout.VERTICAL);
@@ -274,7 +260,7 @@ public class MainActivity extends Activity {
         // Funktion 1: reversible Ursachen
         TextView section = text("Reversible Ursachen", 17, true);
         section.setTextColor(WARN);
-        section.setPadding(0, dp(20), 0, 0);
+        section.setPadding(0, dp(8), 0, 0);
         causes.addView(section);
         TextView sub = text("Antippen, wenn ausgeschlossen", 12, false);
         sub.setTextColor(Color.rgb(0x8A, 0x90, 0xA0));
@@ -316,42 +302,44 @@ public class MainActivity extends Activity {
         causes.addView(causeCount);
         refreshCauses();
 
-        showTab(false);
 
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(Color.rgb(0x1C, 0x20, 0x2B));
         scroll.addView(list);
-        return scroll;
+
+        // Farbiger Streifen links zeigt, welcher Bereich offen ist.
+        LinearLayout wrap = new LinearLayout(this);
+        wrap.setBackgroundColor(Color.rgb(0x1C, 0x20, 0x2B));
+        panelStripe = new View(this);
+        wrap.addView(panelStripe, new LinearLayout.LayoutParams(dp(6), ViewGroup.LayoutParams.MATCH_PARENT));
+        wrap.addView(scroll, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        return wrap;
     }
 
     private TextView causeCount;
 
-    private TextView tab(String label) {
-        TextView t = text(label, 13, true);
+    private TextView handle(String label, int color, String description) {
+        TextView t = text(label, 14, true);
         t.setGravity(Gravity.CENTER);
-        t.setPadding(dp(4), dp(8), dp(4), dp(8));
+        t.setLineSpacing(0, 0.9f);
+        t.setContentDescription(description);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(color);
+        float r = dp(10);
+        bg.setCornerRadii(new float[]{r, r, 0, 0, 0, 0, r, r});
+        t.setBackground(bg);
         return t;
     }
 
     private void showTab(boolean settings) {
         causesBox.setVisibility(settings ? View.GONE : View.VISIBLE);
         settingsBox.setVisibility(settings ? View.VISIBLE : View.GONE);
-        styleTab(tabCauses, !settings);
-        styleTab(tabSettings, settings);
-    }
-
-    private void styleTab(TextView t, boolean active) {
-        GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadius(dp(8));
-        bg.setColor(active ? Color.rgb(0x3A, 0x5A, 0x8C) : Color.rgb(0x2A, 0x2F, 0x3C));
-        t.setBackground(bg);
-        t.setTextColor(active ? Color.WHITE : Color.rgb(0x8A, 0x90, 0xA0));
+        panelStripe.setBackgroundColor(settings ? SETTINGS_COLOR : HITS_COLOR);
     }
 
     private View buildSettings() {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(0, dp(12), 0, 0);
+        box.setPadding(0, dp(8), 0, 0);
 
         TextView title = text("App-Update", 17, true);
         title.setTextColor(WARN);
@@ -394,8 +382,8 @@ public class MainActivity extends Activity {
         updateButton.setText(available ? "Update herunterladen" : "Nach Updates suchen");
         updateButton.setEnabled(true);
         // Orangener Punkt am Griff zeigt ein Update an.
-        handle.setText(available ? "‹\n●" : "‹");
-        handle.setTextColor(available ? WARN : Color.rgb(0x9E, 0xC5, 0xFF));
+        settingsHandle.setText(available ? "⚙\n●" : "⚙");
+        settingsHandle.setTextColor(available ? WARN : Color.WHITE);
     }
 
     private long versionCode() {
@@ -445,7 +433,8 @@ public class MainActivity extends Activity {
         causeCount.setText(done + " von " + CAUSES.length + " abgehakt");
     }
 
-    private void openPanel() {
+    private void openPanel(boolean settings) {
+        showTab(settings);
         dim.setVisibility(View.VISIBLE);
         dim.setAlpha(0f);
         dim.animate().alpha(1f).setDuration(200).start();
