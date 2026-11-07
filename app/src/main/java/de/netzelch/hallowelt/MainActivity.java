@@ -27,6 +27,7 @@ import com.google.zxing.RGBLuminanceSource;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.common.HybridBinarizer;
 import com.google.zxing.qrcode.QRCodeWriter;
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 
 import org.json.JSONObject;
 
@@ -228,7 +229,7 @@ public class MainActivity extends Activity {
             return;
         }
         try {
-            qr.setImageDrawable(pixelSharp(makeQr(code, 800)));
+            qr.setImageDrawable(pixelSharp(makeQr(code, dp(240))));
             qr.setVisibility(View.VISIBLE);
         } catch (Exception e) {
             hint.setVisibility(View.VISIBLE);
@@ -283,15 +284,25 @@ public class MainActivity extends Activity {
         return new MultiFormatReader().decode(image, hints).getText();
     }
 
-    private static Bitmap makeQr(String text, int size) throws Exception {
+    /**
+     * Erzeugt den QR-Code mit denselben Einstellungen wie die Konsum-App
+     * (Fehlerkorrektur M, Maske 4, ohne UTF-8-Kennung), damit Kassenscanner ihn genauso lesen.
+     * Jedes Kästchen bekommt exakt gleich viele Pixel, ungefähr {@code targetPx} breit insgesamt.
+     */
+    private static Bitmap makeQr(String text, int targetPx) throws Exception {
         Map<EncodeHintType, Object> hints = new EnumMap<>(EncodeHintType.class);
-        hints.put(EncodeHintType.MARGIN, 2);
-        hints.put(EncodeHintType.CHARACTER_SET, "UTF-8");
-        BitMatrix m = new QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, size, size, hints);
+        hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M);
+        hints.put(EncodeHintType.QR_MASK_PATTERN, 4);
+        hints.put(EncodeHintType.MARGIN, 4);  // Ruhezone nach Norm: 4 Kästchen
+        // Größe 0: ein Pixel pro Kästchen, danach ganzzahlig hochskalieren.
+        BitMatrix m = new QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, 0, 0, hints);
+        int modules = m.getWidth();
+        int scale = Math.max(1, targetPx / modules);
+        int size = modules * scale;
         int[] pixels = new int[size * size];
         for (int y = 0; y < size; y++) {
             for (int x = 0; x < size; x++) {
-                pixels[y * size + x] = m.get(x, y) ? 0xFF000000 : 0xFFFFFFFF;
+                pixels[y * size + x] = m.get(x / scale, y / scale) ? 0xFF000000 : 0xFFFFFFFF;
             }
         }
         return Bitmap.createBitmap(pixels, size, size, Bitmap.Config.ARGB_8888);
@@ -318,5 +329,9 @@ public class MainActivity extends Activity {
 
     private SharedPreferences cardPrefs() {
         return getSharedPreferences("card", MODE_PRIVATE);
+    }
+
+    private int dp(int v) {
+        return Math.round(v * getResources().getDisplayMetrics().density);
     }
 }

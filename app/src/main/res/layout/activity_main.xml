@@ -40,13 +40,13 @@
 
         <ImageView
             android:id="@+id/qr"
-            android:layout_width="244dp"
-            android:layout_height="244dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:background="@drawable/qr_frame"
-            android:padding="12dp"
+            android:padding="4dp"
             android:contentDescription="QR-Code der Kundenkarte"
-            android:scaleType="fitCenter" />
+            android:scaleType="center" />
 
         <TextView
             android:id="@+id/number"
