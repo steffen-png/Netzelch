@@ -47,6 +47,8 @@ public class MainActivity extends Activity {
     private static final int PICK_IMAGE = 1;
     private static final String KEY_CODE = "code";
 
+    private View controls;
+    private View updateDot;
     private ImageView qr;
     private TextView number;
     private TextView hint;
@@ -82,6 +84,17 @@ public class MainActivity extends Activity {
         updateButton = findViewById(R.id.update);
         updateButton.setOnClickListener(v -> onUpdateClicked());
 
+        // Bedienung ist versteckt: langes Drücken auf Titel oder QR-Code blendet sie ein und aus.
+        controls = findViewById(R.id.controls);
+        updateDot = findViewById(R.id.updateDot);
+        View.OnLongClickListener toggle = v -> {
+            controls.setVisibility(controls.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
+            return true;
+        };
+        findViewById(R.id.title).setOnLongClickListener(toggle);
+        qr.setOnLongClickListener(toggle);
+        updateDot.setOnClickListener(v -> controls.setVisibility(View.VISIBLE));
+
         render();
         checkForUpdate();
     }
@@ -104,6 +117,7 @@ public class MainActivity extends Activity {
                 runOnUiThread(() -> {
                     busy = false;
                     latestVersion = latest;
+                    updateDot.setVisibility(latest > current ? View.VISIBLE : View.INVISIBLE);
                     if (latest > current) {
                         showStatus("Neue Version 1." + latest + " verfügbar", true);
                         updateButton.setText("Jetzt aktualisieren");
@@ -204,7 +218,9 @@ public class MainActivity extends Activity {
     private void render() {
         String code = cardPrefs().getString(KEY_CODE, null);
         if (code == null) {
+            controls.setVisibility(View.VISIBLE);  // ohne Karte braucht man die Bedienung
             qr.setVisibility(View.GONE);
+            hint.setVisibility(View.VISIBLE);
             number.setVisibility(View.GONE);
             hint.setText("Noch keine Karte gespeichert.\n\nMach in der Kunden-App einen Screenshot "
                     + "deiner Karte und wähle ihn hier aus.");
@@ -215,6 +231,7 @@ public class MainActivity extends Activity {
             qr.setImageDrawable(pixelSharp(makeQr(code, 800)));
             qr.setVisibility(View.VISIBLE);
         } catch (Exception e) {
+            hint.setVisibility(View.VISIBLE);
             hint.setText("QR-Code konnte nicht erzeugt werden: " + e.getMessage());
             return;
         }
@@ -222,6 +239,8 @@ public class MainActivity extends Activity {
         number.setText(id != null ? "Kundennummer: " + id : "");
         number.setVisibility(id != null ? View.VISIBLE : View.GONE);
         hint.setText("");
+        hint.setVisibility(View.GONE);
+        controls.setVisibility(View.GONE);
         pick.setText("Andere Karte wählen");
     }
 
@@ -241,6 +260,7 @@ public class MainActivity extends Activity {
             cardPrefs().edit().putString(KEY_CODE, code).apply();
             render();
         } catch (Exception e) {
+            hint.setVisibility(View.VISIBLE);
             hint.setText("Im Bild wurde kein QR-Code gefunden. Nimm einen Screenshot, "
                     + "auf dem der Code vollständig zu sehen ist.");
         }
