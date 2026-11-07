@@ -248,7 +248,7 @@ public class MainActivity extends Activity {
     private View buildPanel() {
         LinearLayout list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
-        list.setPadding(dp(10), dp(4), dp(10), dp(24));
+        list.setPadding(dp(8), dp(4), dp(8), dp(8));
 
         LinearLayout causes = new LinearLayout(this);
         causes.setOrientation(LinearLayout.VERTICAL);
@@ -257,14 +257,7 @@ public class MainActivity extends Activity {
         settingsBox = buildSettings();
         list.addView(settingsBox);
 
-        // Funktion 1: reversible Ursachen
-        TextView section = text("Reversible Ursachen", 17, true);
-        section.setTextColor(WARN);
-        section.setPadding(0, dp(8), 0, 0);
-        causes.addView(section);
-        TextView sub = text("Antippen, wenn ausgeschlossen", 12, false);
-        sub.setTextColor(Color.rgb(0x8A, 0x90, 0xA0));
-        causes.addView(sub);
+        // Funktion 1: reversible Ursachen (ohne Überschrift, damit alles ohne Scrollen passt)
 
         causeChecks = new CheckBox[CAUSES.length];
         String group = "";
@@ -273,14 +266,14 @@ public class MainActivity extends Activity {
                 group = CAUSES[k][0];
                 TextView g = text(group, 15, true);
                 g.setTextColor(Color.rgb(0x9E, 0xC5, 0xFF));
-                g.setPadding(0, dp(14), 0, dp(2));
+                g.setPadding(0, dp(k == 0 ? 4 : 10), 0, 0);
                 causes.addView(g);
             }
             CheckBox cb = new CheckBox(this);
             cb.setText(CAUSES[k][1] + "\n" + CAUSES[k][2]);
             cb.setTextColor(Color.WHITE);
             cb.setTextSize(14);
-            cb.setPadding(dp(4), dp(10), dp(6), dp(10));
+            cb.setPadding(dp(4), dp(6), dp(6), dp(6));
             cb.setButtonTintList(ColorStateList.valueOf(Color.WHITE));
             final int idx = k;
             cb.setOnCheckedChangeListener((b, checked) -> {
@@ -293,12 +286,12 @@ public class MainActivity extends Activity {
             causeChecks[k] = cb;
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            lp.topMargin = dp(6);
+            lp.topMargin = dp(4);
             causes.addView(cb, lp);
         }
         causeCount = text("", 14, false);
         causeCount.setTextColor(Color.rgb(0x8A, 0x90, 0xA0));
-        causeCount.setPadding(0, dp(12), 0, 0);
+        causeCount.setPadding(0, dp(8), 0, 0);
         causes.addView(causeCount);
         refreshCauses();
 
