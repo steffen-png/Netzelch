@@ -1,28 +1,28 @@
 {
   "statusLine": {
     "type": "command",
-    "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/budget/budget.py\" statusline"
+    "command": "python3 -c \"import os,sys,runpy;p=os.path.join(os.environ.get('CLAUDE_PROJECT_DIR','.'),'.claude','skills','token-budget','budget.py');sys.argv=[p,'statusline'];os.path.isfile(p) and runpy.run_path(p,run_name='__main__')\""
   },
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/budget/budget.py\" hook", "timeout": 10 }
+          { "type": "command", "timeout": 10, "command": "python3 -c \"import os,sys,runpy;p=os.path.join(os.environ.get('CLAUDE_PROJECT_DIR','.'),'.claude','skills','token-budget','budget.py');sys.argv=[p,'hook'];os.path.isfile(p) and runpy.run_path(p,run_name='__main__')\"" }
         ]
       }
     ],
     "UserPromptSubmit": [
       {
         "hooks": [
-          { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/budget/budget.py\" hook", "timeout": 10 }
+          { "type": "command", "timeout": 10, "command": "python3 -c \"import os,sys,runpy;p=os.path.join(os.environ.get('CLAUDE_PROJECT_DIR','.'),'.claude','skills','token-budget','budget.py');sys.argv=[p,'hook'];os.path.isfile(p) and runpy.run_path(p,run_name='__main__')\"" }
         ]
       }
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit|mcp__claude-code-remote__.*",
+        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit|SendMessage|CronCreate|ScheduleWakeup|mcp__claude-code-remote__.*",
         "hooks": [
-          { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/budget/budget.py\" hook", "timeout": 10 }
+          { "type": "command", "timeout": 10, "command": "python3 -c \"import os,sys,runpy;p=os.path.join(os.environ.get('CLAUDE_PROJECT_DIR','.'),'.claude','skills','token-budget','budget.py');sys.argv=[p,'hook'];os.path.isfile(p) and runpy.run_path(p,run_name='__main__')\"" }
         ]
       }
     ],
@@ -30,7 +30,7 @@
       {
         "matcher": "*",
         "hooks": [
-          { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/budget/budget.py\" hook", "timeout": 10 }
+          { "type": "command", "timeout": 10, "command": "python3 -c \"import os,sys,runpy;p=os.path.join(os.environ.get('CLAUDE_PROJECT_DIR','.'),'.claude','skills','token-budget','budget.py');sys.argv=[p,'hook'];os.path.isfile(p) and runpy.run_path(p,run_name='__main__')\"" }
         ]
       }
     ]
