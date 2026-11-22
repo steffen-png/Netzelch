@@ -1,0 +1,38 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "python3 -c \"import os,sys,runpy;p=os.path.join(os.environ.get('CLAUDE_PROJECT_DIR','.'),'.claude','skills','token-budget','budget.py');sys.argv=[p,'statusline'];os.path.isfile(p) and runpy.run_path(p,run_name='__main__')\""
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "timeout": 10, "command": "python3 -c \"import os,sys,runpy;p=os.path.join(os.environ.get('CLAUDE_PROJECT_DIR','.'),'.claude','skills','token-budget','budget.py');sys.argv=[p,'hook'];os.path.isfile(p) and runpy.run_path(p,run_name='__main__')\"" }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "timeout": 10, "command": "python3 -c \"import os,sys,runpy;p=os.path.join(os.environ.get('CLAUDE_PROJECT_DIR','.'),'.claude','skills','token-budget','budget.py');sys.argv=[p,'hook'];os.path.isfile(p) and runpy.run_path(p,run_name='__main__')\"" }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit|SendMessage|CronCreate|ScheduleWakeup|mcp__claude-code-remote__.*",
+        "hooks": [
+          { "type": "command", "timeout": 10, "command": "python3 -c \"import os,sys,runpy;p=os.path.join(os.environ.get('CLAUDE_PROJECT_DIR','.'),'.claude','skills','token-budget','budget.py');sys.argv=[p,'hook'];os.path.isfile(p) and runpy.run_path(p,run_name='__main__')\"" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "timeout": 10, "command": "python3 -c \"import os,sys,runpy;p=os.path.join(os.environ.get('CLAUDE_PROJECT_DIR','.'),'.claude','skills','token-budget','budget.py');sys.argv=[p,'hook'];os.path.isfile(p) and runpy.run_path(p,run_name='__main__')\"" }
+        ]
+      }
+    ]
+  }
+}
