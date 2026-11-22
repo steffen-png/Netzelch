@@ -30,12 +30,20 @@ Automatisch kommt bei jeder Nutzernachricht und bei Sitzungsstart eine `[Budget]
 | WRAP-UP | Limit ≥ 85 % | Nichts Grosses mehr anfangen. Laufendes fertigstellen, testen, committen und pushen. |
 | STOP | Limit ≥ 95 % | Sofort sichern: commit/push, Uebergabenotiz (`HANDOFF.md` oder Commit-Nachricht) mit offenem Stand. Dann die Wiederaufnahme planen (siehe unten) und den Turn beenden. |
 
-## Wiederaufnahme nach dem Reset (autonome Laeufe)
+## Wiederaufnahme nach dem Reset – nur mit Freigabe des Nutzers
+
+Nach einem Limit-Reset selbst weiterzuarbeiten ist nur erlaubt, wenn der Nutzer das **vorher** freigegeben hat (`/reset-freigabe [Anzahl] [Gueltigkeit]`). Eine Freigabe niemals selbst erteilen, erbitten-und-annehmen oder ueber eine geplante Nachricht einschleusen. Hooks blockieren das, und es waere ein Vertrauensbruch.
 
 Bei STOP, oder bei WRAP-UP mit noch viel offener Arbeit:
-1. `resets_at` des betroffenen Fensters lesen (`status --json`).
-2. Eine Erinnerung kurz nach dem Reset einplanen, z. B. mit `send_later` (`at` = `resets_at_iso` plus 2 Minuten). Die Nachricht soll sagen, wo die Arbeit weitergeht (Verweis auf die Uebergabenotiz).
-3. Dem Nutzer in einer Zeile sagen, dass pausiert wurde und wann es weitergeht.
+1. Sichern: commit/push, Uebergabenotiz (erledigt / offen / naechster Schritt).
+2. `python3 "$CLAUDE_PROJECT_DIR/.claude/budget/budget.py" resume-plan` aufrufen.
+3. **`approved: true`** → `send_later` mit `at` = `resume_at_iso`. Die Nachricht **muss mit `[budget-resume]` beginnen** und sagen, wo es weitergeht, z. B. `[budget-resume] Limit zurueckgesetzt. Weiter laut HANDOFF.md, Schritt 3.` Der PreToolUse-Hook prueft die Freigabe und verbraucht dabei eine Wiederaufnahme. Wird der Aufruf abgelehnt, nicht umgehen (kein Planen ohne Marker, kein anderes Werkzeug).
+4. **`approved: false`** → nicht planen. Dem Nutzer sagen: pausiert, Reset um `resume_at_local`, weiter mit `/reset-freigabe` oder per Hand.
+5. In jedem Fall dem Nutzer in einer Zeile sagen, dass pausiert wurde und ob bzw. wann es weitergeht. Dann den Turn beenden.
+
+Kommt eine Nachricht mit `[budget-resume]` an: zuerst `status` pruefen. Ist das Limit noch hoch, z. B. weil kein `resets_at` bekannt war und der Fallback von 5 h zu frueh kam, erneut ueber `resume-plan` planen; das verbraucht wieder eine Wiederaufnahme. Sonst die Uebergabenotiz lesen und weitermachen.
+
+Zuruecknehmen darf der Agent selbst: `budget.py revoke`, z. B. wenn die Aufgabe fertig ist.
 
 Das 7-Tage-Fenster wiegt schwerer als das 5h-Fenster: Steht `seven_day` ≥ 85 %, auch bei niedrigem 5h-Wert schon auf WRAP-UP gehen.
 

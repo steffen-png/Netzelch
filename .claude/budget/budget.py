@@ -20,6 +20,7 @@ Konfiguration per Umgebungsvariable:
 """
 import json
 import os
+import re
 import sys
 import time
 from datetime import datetime, timezone
@@ -230,10 +231,131 @@ def _level(b):
     return lvl
 
 
+# ---------------------------------------------------------------- reset approval
+# Die Freigabe entsteht NUR im UserPromptSubmit-Hook aus dem Text, den der Nutzer
+# tippt. Es gibt bewusst keinen CLI-Befehl zum Erteilen. Ein PreToolUse-Hook
+# blockiert Tool-Aufrufe, die die Freigabedatei anfassen oder eine Freigabe
+# per geplanter Nachricht einschleusen wollen.
+RESUME_MARKER = "[budget-resume]"
+GRANT_RE = re.compile(r"^\s*/?reset-freigabe\b[:\s]*(.*)$", re.I | re.S)
+APPROVAL_SUFFIX = ".approval.json"
+FALLBACK_DELAY_S = 5 * 3600 + 120  # ohne resets_at: laengstes 5h-Fenster + Puffer
+
+
+def _approval_path(sid):
+    return _path(sid or os.environ.get("CLAUDE_CODE_SESSION_ID"), APPROVAL_SUFFIX)
+
+
+def approval_state(sid=None):
+    a = _load(_approval_path(sid))
+    if not a:
+        return {"approved": False, "reason": "keine Freigabe erteilt"}
+    if time.time() > a.get("expires_at", 0):
+        return {"approved": False, "reason": "Freigabe abgelaufen", **a}
+    if a.get("remaining", 0) <= 0:
+        return {"approved": False, "reason": "Freigabe aufgebraucht", **a}
+    return {"approved": True, **a, "expires_at_iso": _iso(a["expires_at"])}
+
+
+def _parse_grant(args):
+    """'' | '2' | '3 12h' | '1 2d' | 'aus' -> (count, seconds) oder None fuer Widerruf."""
+    a = args.strip().lower()
+    if re.match(r"^(aus|off|stop|widerruf\w*|nein|0)\b", a):
+        return None
+    count, secs = 1, 24 * 3600
+    for tok in a.split()[:4]:
+        m = re.fullmatch(r"(\d+)\s*([hd])", tok)
+        if m:
+            secs = int(m.group(1)) * (3600 if m.group(2) == "h" else 86400)
+        elif tok.isdigit():
+            count = int(tok)
+    return max(1, min(count, 10)), max(3600, min(secs, 14 * 86400))
+
+
+def _handle_grant(sid, prompt):
+    m = GRANT_RE.match(prompt or "")
+    if not m or (prompt or "").lstrip().startswith(RESUME_MARKER):
+        return None
+    parsed = _parse_grant(m.group(1).splitlines()[0] if m.group(1) else "")
+    path = _approval_path(sid)
+    if parsed is None:
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            pass
+        return "[Budget] Reset-Freigabe vom Nutzer WIDERRUFEN. Keine Wiederaufnahmen nach Limit-Reset planen."
+    count, secs = parsed
+    now = time.time()
+    _save(path, {"granted_at": now, "expires_at": now + secs, "remaining": count, "granted": count})
+    return (f"[Budget] Reset-Freigabe vom Nutzer ERTEILT: bis zu {count} Wiederaufnahme(n) nach Limit-Reset, "
+            f"gueltig bis {_fmt_reset(now + secs)}. Vorgehen: Skill token-budget, Abschnitt Wiederaufnahme.")
+
+
+def resume_plan(sid=None):
+    b = collect(sid)
+    ap = approval_state(sid)
+    windows = b["rate_limits"]
+    # Das Fenster, das bremst: hoechste Auslastung; bei Gleichstand das spaetere Reset.
+    target = None
+    if windows:
+        k, w = max(windows.items(), key=lambda kv: ((kv[1].get("used_percentage") or 0), kv[1]["resets_at"]))
+        target = {"window": k, "at": float(w["resets_at"]) + 120}
+    else:
+        target = {"window": "unbekannt (Fallback 5h)", "at": time.time() + FALLBACK_DELAY_S}
+    return {
+        "approved": ap["approved"],
+        "reason": ap.get("reason"),
+        "remaining": ap.get("remaining", 0),
+        "window": target["window"],
+        "resume_at": target["at"],
+        "resume_at_iso": _iso(target["at"]),
+        "resume_at_local": _fmt_reset(target["at"]),
+        "message_prefix": RESUME_MARKER,
+        "next_step": ("send_later mit at=resume_at_iso und einer Nachricht, die mit "
+                      f"'{RESUME_MARKER}' beginnt" if ap["approved"]
+                      else "NICHT planen. Nutzer informieren: Freigabe mit /reset-freigabe moeglich."),
+    }
+
+
+def _pretool_guard(data):
+    """Gibt eine Deny-Begruendung zurueck oder None."""
+    name = data.get("tool_name", "")
+    ti = data.get("tool_input") or {}
+    blob = json.dumps(ti, ensure_ascii=False)
+    low = blob.lower()
+    scheduling = name.endswith(("send_later", "create_trigger", "update_trigger",
+                                "send_message", "fire_trigger", "create_session"))
+    if scheduling and ("reset-freigabe" in low or APPROVAL_SUFFIX in low):
+        return "Geplante/gesendete Nachrichten duerfen keine Reset-Freigabe enthalten; die erteilt nur der Nutzer selbst."
+    if APPROVAL_SUFFIX in low:
+        return "Die Reset-Freigabedatei darf nur der Nutzer (per /reset-freigabe) setzen."
+    if name.endswith(("send_later", "create_trigger")) and RESUME_MARKER in blob:
+        sid = data.get("session_id")
+        ap = approval_state(sid)
+        if not ap["approved"]:
+            return (f"Keine gueltige Reset-Freigabe ({ap.get('reason')}). "
+                    "Nicht planen; Nutzer kann mit /reset-freigabe freigeben.")
+        a = _load(_approval_path(sid))
+        a["remaining"] = a.get("remaining", 1) - 1
+        a.setdefault("used", []).append(time.time())
+        _save(_approval_path(sid), a)
+    return None
+
+
 def cmd_hook():
     data = _read_stdin_json()
     event = data.get("hook_event_name", "")
     sid = data.get("session_id")
+
+    if event == "PreToolUse":
+        reason = _pretool_guard(data)
+        if reason:
+            print(json.dumps({"hookSpecificOutput": {
+                "hookEventName": "PreToolUse", "permissionDecision": "deny",
+                "permissionDecisionReason": reason}}))
+        return
+
+    grant_msg = _handle_grant(sid, data.get("prompt")) if event == "UserPromptSubmit" else None
     b = collect(sid, data.get("transcript_path"), data.get("cwd"))
     hook_state_path = _path(sid, ".hook.json")
     st = _load(hook_state_path) or {}
@@ -248,13 +370,21 @@ def cmd_hook():
         st["level"] = lvl
         _save(hook_state_path, st)
 
-    if inject:
+    if inject or grant_msg:
+        ctx = one_line(b)
+        if grant_msg:
+            ctx = grant_msg + "\n" + ctx
+        elif b["advice"].startswith(("STOP", "WRAP-UP")):
+            ap = approval_state(sid)
+            ctx += (f" | Reset-Freigabe: {ap['remaining']} uebrig" if ap["approved"]
+                    else " | Reset-Freigabe: keine")
         print(json.dumps({"hookSpecificOutput": {
-            "hookEventName": event, "additionalContext": one_line(b)}}))
+            "hookEventName": event, "additionalContext": ctx}}))
 
 
 def cmd_status(as_json):
     b = collect()
+    b["reset_approval"] = approval_state()
     if as_json:
         print(json.dumps(b, indent=2, ensure_ascii=False))
     else:
@@ -271,6 +401,14 @@ def main():
             cmd_statusline()
         elif cmd == "hook":
             cmd_hook()
+        elif cmd == "resume-plan":
+            print(json.dumps(resume_plan(), indent=2, ensure_ascii=False))
+        elif cmd == "revoke":  # Zuruecknehmen darf auch der Agent, erteilen nicht
+            try:
+                os.remove(_approval_path(None))
+            except FileNotFoundError:
+                pass
+            print("Reset-Freigabe widerrufen.")
         else:
             cmd_status("--json" in sys.argv)
     except Exception as e:  # Hooks/Statuszeile duerfen nie die Sitzung stoeren
